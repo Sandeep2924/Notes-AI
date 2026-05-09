@@ -27,11 +27,11 @@ app = FastAPI(title="Notes AI API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://notes-ai.vercel.app"],
+    allow_origins=["https://notes-ai.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-)
+) 
 
 # ── Global error handler — shows FULL traceback in terminal ───────────────────
 @app.exception_handler(Exception)

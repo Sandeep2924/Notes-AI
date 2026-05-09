@@ -1,32 +1,32 @@
-fastapi==0.115.0
-uvicorn==0.32.0
-gunicorn==26.0.0
+# --- Web & Server ---
+fastapi>=0.115.0
+uvicorn>=0.32.0
+gunicorn>=23.0.0
+python-dotenv>=1.2.2
+python-multipart>=0.0.12
+httpx>=0.28.1
+requests>=2.32.0
+aiofiles>=24.1.0
 
-python-dotenv==1.2.2
-python-multipart==0.0.12
+# --- Document Processing ---
+PyMuPDF>=1.24.11
+python-docx>=1.2.0
+openpyxl>=3.1.5
+python-pptx>=1.0.2
 
-PyMuPDF==1.24.11
-pdfplumber==0.11.9
-pdf2image==1.17.0
-pytesseract==0.3.13
-easyocr==1.7.2
-pillow==11.0.0
+# --- Image Processing & OCR ---
+pillow>=11.0.0
+pytesseract>=0.3.13
 
-numpy==2.0.0
-pandas==3.0.2
-scikit-learn==1.8.0
+# --- Data Science & Vectors ---
+numpy>=2.0.0
+pandas>=2.2.0
+scikit-learn>=1.5.0
+chromadb>=0.5.20
 
-sentence-transformers==3.3.0
-faiss-cpu==1.13.2
-transformers==4.57.6
-torch==2.11.0
-
-httpx==0.28.1
-requests==2.33.1
-
-aiofiles==25.1.0
-python-docx==1.2.0
-openpyxl==3.1.5
-python-pptx==1.0.2
-
-chromadb==0.5.20
+# --- AI Models & LLM ---
+# Forces pip to install the smaller CPU-only version of PyTorch to save RAM
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.4.0
+sentence-transformers>=3.3.0
+groq>=0.11.0

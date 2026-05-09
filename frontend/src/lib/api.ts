@@ -3,10 +3,11 @@ import axios, { AxiosError } from 'axios'
 // ── Client ────────────────────────────────────────────────────────────────
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: process.env.NEXT_PUBLIC_API_URL
+    ? `${process.env.NEXT_PUBLIC_API_URL}`
+    : '/api',
   timeout: 90_000,
 })
-
 // ── Response Interceptor: normalise errors ────────────────────────────────
 
 api.interceptors.response.use(
@@ -118,12 +119,12 @@ export const sendChat = async (
   })
 
 export const getHealth = async (): Promise<HealthResponse> => {
-  const res = await api.get<HealthResponse>('/health', { timeout: 5000 })
+  const res = await api.get<HealthResponse>('/health', { timeout: 35_000 }) // 35s for cold start
   return res.data
 }
 
 export const getStats = async (): Promise<StatsResponse> => {
-  const res = await api.get<StatsResponse>('/stats', { timeout: 5000 })
+  const res = await api.get<StatsResponse>('/stats', { timeout: 35_000 }) // 35s for cold start
   return res.data
 }
 

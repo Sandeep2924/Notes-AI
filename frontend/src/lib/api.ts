@@ -2,12 +2,13 @@ import axios, { AxiosError } from 'axios'
 
 // ── Client ────────────────────────────────────────────────────────────────
 
+// FIX 1: Explicitly use the env variable, fallback to localhost for local dev.
+// This prevents Next.js from routing to a dead '/api' endpoint on Vercel.
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL
-    ? `${process.env.NEXT_PUBLIC_API_URL}`
-    : '/api',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
   timeout: 90_000,
 })
+
 // ── Response Interceptor: normalise errors ────────────────────────────────
 
 api.interceptors.response.use(
@@ -21,9 +22,10 @@ api.interceptors.response.use(
     } else if (Array.isArray(raw)) {
       message = raw.map(e => e.msg).join('; ')
     } else if (err.code === 'ECONNABORTED') {
-      message = 'Request timed out — the backend may be overloaded.'
+      message = 'Request timed out — the backend may be waking up from a cold start.'
     } else if (!err.response) {
-      message = 'Cannot reach backend. Is it running on port 8000?'
+      // FIX 2: Updated this message so it makes sense in production (Vercel)
+      message = 'Cannot reach backend. Please verify your Render URL in Vercel Environment Variables.'
     }
 
     // Attach a human-readable message to the error object

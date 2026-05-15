@@ -25,14 +25,32 @@ from groq import Groq
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="Notes AI API", version="1.0.0")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000",
-    "https://notes-ai-sandeep2924s-projects.vercel.app","https://notes-ai.vercel.app",],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-) 
+# ── CORS: read allowed origins from env so you never need to redeploy ─────────
+# In Render, set: ALLOWED_ORIGINS=https://notes-ai.vercel.app,https://notes-ai-sandeep2924s-projects.vercel.app
+# Leave unset (or set to *) to allow all origins during development.
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "*").strip()
+
+if _raw_origins == "*":
+    # Allow all origins — fine for dev or if you want open access
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=False,   # credentials=True is incompatible with allow_origins=["*"]
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    # Production: explicit list from environment variable
+    _allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+    # Always include localhost for local dev
+    _allowed_origins += ["http://localhost:3000", "http://localhost:3001"]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_allowed_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 # ── Global error handler — shows FULL traceback in terminal ───────────────────
 @app.exception_handler(Exception)

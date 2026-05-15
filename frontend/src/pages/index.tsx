@@ -225,7 +225,7 @@ export default function Home() {
       </motion.aside>
 
       {/* Main Chat Area */}
-      <main className="flex-1 flex flex-col min-w-0 bg-[var(--bg)] relative">
+      <main className="flex-1 flex flex-col min-w-0 min-h-0 bg-[var(--bg)] relative">
         <header className="flex items-center justify-between p-4 border-b border-[var(--border)] bg-[var(--surface)]/80 backdrop-blur-md">
           <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 bg-[var(--surface2)] rounded-lg"><Menu size={18} /></button>
           <div className="flex items-center gap-4">
@@ -239,7 +239,7 @@ export default function Home() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6 scrollable">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 md:p-8 space-y-6 scrollable">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center">
               <Sparkles size={40} className="text-[var(--accent)] mb-4 opacity-20" />

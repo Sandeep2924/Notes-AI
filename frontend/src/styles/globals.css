@@ -360,7 +360,9 @@ code, pre, .mono { font-family: var(--font-mono); }
 .scrollable {
   overflow-y: auto;
   scrollbar-gutter: stable;
-  -webkit-overflow-scrolling: touch; /* Butter-smooth scrolling override on iOS devices */
+  -webkit-overflow-scrolling: touch; /* iOS momentum scrolling */
+  overscroll-behavior: contain;      /* Prevent scroll chaining to body */
+  touch-action: pan-y;               /* Tell browser this element scrolls vertically */
 }
 
 /* ── UI Interactive Safety Focus ───────────────────────────────────── */

@@ -9,6 +9,18 @@ const api = axios.create({
   timeout: 90_000,
 })
 
+// ── Request Interceptor: inject token ──────────────────────────────────────
+
+api.interceptors.request.use(config => {
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+  }
+  return config
+})
+
 // ── Response Interceptor: normalise errors ────────────────────────────────
 
 api.interceptors.response.use(
@@ -132,6 +144,103 @@ export const getStats = async (): Promise<StatsResponse> => {
 
 export const clearNotes = async (): Promise<void> => {
   await api.delete('/clear')
+}
+
+// ── Auth & Document Calls ──────────────────────────────────────────────────
+
+export const login = async (email: string, password: string) => {
+  const form = new URLSearchParams()
+  form.append('username', email)
+  form.append('password', password)
+  const res = await api.post('/login', form, {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+  })
+  return res.data
+}
+
+export const signup = async (name: string, email: string, password: string) => {
+  const res = await api.post('/signup', { name, email, password })
+  return res.data
+}
+
+export const getMe = async () => {
+  const res = await api.get('/me')
+  return res.data
+}
+
+export const getDocuments = async () => {
+  const res = await api.get('/documents')
+  return res.data
+}
+
+export const getAnnotations = async (docId: string) => {
+  const res = await api.get(`/documents/${docId}/annotations`)
+  return res.data
+}
+
+export const saveAnnotation = async (docId: string, annotation: any) => {
+  const res = await api.post(`/documents/${docId}/annotations`, annotation)
+  return res.data
+}
+
+export const deleteDocument = async (docId: string) => {
+  const res = await api.delete(`/documents/${docId}`)
+  return res.data
+}
+
+// ── Folders ────────────────────────────────────────────────────────────────
+
+export const getFolders = async () => {
+  const res = await api.get('/folders')
+  return res.data
+}
+
+export const createFolder = async (name: string, parentId?: number) => {
+  const res = await api.post('/folders', { name, parent_id: parentId })
+  return res.data
+}
+
+export const renameFolder = async (folderId: number, name: string) => {
+  const res = await api.patch(`/folders/${folderId}`, { name })
+  return res.data
+}
+
+export const deleteFolder = async (folderId: number) => {
+  const res = await api.delete(`/folders/${folderId}`)
+  return res.data
+}
+
+export const moveDocument = async (docId: string, folderId: number | null) => {
+  const res = await api.patch(`/documents/${docId}/move`, { folder_id: folderId })
+  return res.data
+}
+
+export const updateProgress = async (docId: string, lastPage: number) => {
+  await api.patch(`/documents/${docId}/progress`, { last_page_read: lastPage })
+}
+
+// ── Chat History ────────────────────────────────────────────────────────────
+
+export const getChatHistory = async (docId: string) => {
+  const res = await api.get(`/documents/${docId}/chat`)
+  return res.data
+}
+
+export const getFolderChatHistory = async (folderId: number) => {
+  const res = await api.get(`/folders/${folderId}/chat`)
+  return res.data
+}
+
+// ── Annotations ────────────────────────────────────────────────────────────
+
+export const deleteAnnotation = async (docId: string, annId: number) => {
+  const res = await api.delete(`/documents/${docId}/annotations/${annId}`)
+  return res.data
+}
+
+export const updateAnnotation = async (docId: string, annId: number, data: { comment?: string; color?: string }) => {
+  const res = await api.patch(`/documents/${docId}/annotations/${annId}`, data)
+  return res.data
 }
 
 export default api

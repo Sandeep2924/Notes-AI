@@ -1,11 +1,19 @@
 import type { AppProps } from 'next/app'
 import { Toaster } from 'react-hot-toast'
 import '../styles/globals.css'
+import { AuthProvider } from '@/hooks/useAuth'
+import { AuthModal } from '@/components/AuthModal'
+
+import Head from 'next/head'
 
 export default function App({ Component, pageProps }: AppProps) {
   return (
-    <>
+    <AuthProvider>
+      <Head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+      </Head>
       <Component {...pageProps} />
+      <AuthModal />
       <Toaster
         position="top-center"
         toastOptions={{
@@ -29,6 +37,6 @@ export default function App({ Component, pageProps }: AppProps) {
           },
         }}
       />
-    </>
+    </AuthProvider>
   )
 }

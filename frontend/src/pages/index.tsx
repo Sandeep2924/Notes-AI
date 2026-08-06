@@ -52,6 +52,28 @@ export default function Home() {
   const [chatDocId, setChatDocId] = useState<string | undefined>(undefined)
   const [isListening, setIsListening] = useState(false)
 
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [chatWidth, setChatWidth] = useState(340)
+
+  const handleDrag = useCallback((e: MouseEvent) => {
+    const newWidth = document.body.clientWidth - e.clientX
+    if (newWidth > 250 && newWidth < 800) {
+      setChatWidth(newWidth)
+    }
+  }, [])
+
+  const startDrag = useCallback(() => {
+    const onMouseMove = (e: MouseEvent) => handleDrag(e)
+    const onMouseUp = () => {
+      document.body.style.cursor = 'default'
+      document.removeEventListener('mousemove', onMouseMove)
+      document.removeEventListener('mouseup', onMouseUp)
+    }
+    document.body.style.cursor = 'ew-resize'
+    document.addEventListener('mousemove', onMouseMove)
+    document.addEventListener('mouseup', onMouseUp)
+  }, [handleDrag])
+
   const { user, logout } = useAuth()
   const { uploading, files, folders, upload, fetchDocuments, fetchFolders, addFolder, removeFolder, moveDoc, removeFile } = useUpload()
   const { messages, loading, historyLoaded, send, clearMessages, loadHistory } = useChat()
@@ -180,19 +202,22 @@ export default function Home() {
       key={f.docId}
       onClick={() => { setSelectedDoc(f); setActiveTab('documents') }}
       className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs truncate group cursor-pointer ${selectedDoc?.docId === f.docId ? 'text-white bg-[var(--bg-panel-hover)]' : 'text-[var(--text-muted)] hover:text-white hover:bg-[var(--bg-panel-hover)]'}`}
+      title={f.name}
     >
       <FileText size={13} className="text-blue-400 flex-shrink-0" />
-      <span className="truncate flex-1 text-left">{f.name}</span>
-      {f.lastPageRead && f.lastPageRead > 1 && (
+      {sidebarOpen && <span className="truncate flex-1 text-left">{f.name}</span>}
+      {sidebarOpen && f.lastPageRead && f.lastPageRead > 1 && (
         <span className="text-[10px] text-[var(--text-muted)] flex-shrink-0">p.{f.lastPageRead}</span>
       )}
-      <button
-        onClick={e => { e.stopPropagation(); if (confirm('Delete this document?')) removeFile(f.docId).then(ok => { if (ok && selectedDoc?.docId === f.docId) setSelectedDoc(null) }) }}
-        className="opacity-0 group-hover:opacity-100 hover:text-red-400 transition-all flex-shrink-0 p-1"
-        aria-label="Delete document"
-      >
-        <Trash2 size={11} />
-      </button>
+      {sidebarOpen && (
+        <button
+          onClick={e => { e.stopPropagation(); if (confirm('Delete this document?')) removeFile(f.docId).then(ok => { if (ok && selectedDoc?.docId === f.docId) setSelectedDoc(null) }) }}
+          className="opacity-0 group-hover:opacity-100 hover:text-red-400 transition-all flex-shrink-0 p-1"
+          aria-label="Delete document"
+        >
+          <Trash2 size={11} />
+        </button>
+      )}
     </div>
   )
 
@@ -202,23 +227,27 @@ export default function Home() {
     return (
       <div key={folder.id}>
         <div className="flex items-center gap-1 group">
-          <button onClick={() => toggleFolder(folder.id)} className="p-1 text-[var(--text-muted)] hover:text-white transition-colors">
-            {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-          </button>
-          <button onClick={() => { setSelectedFolder(folder); setSelectedDoc(null); setActiveTab('documents') }} className={`flex items-center gap-2 flex-1 px-2 py-1.5 rounded-md text-xs transition-colors ${selectedFolder?.id === folder.id ? 'text-white bg-[var(--bg-panel-hover)]' : 'text-[var(--text-muted)] hover:text-white hover:bg-[var(--bg-panel-hover)]'}`}>
+          {sidebarOpen && (
+            <button onClick={() => toggleFolder(folder.id)} className="p-1 text-[var(--text-muted)] hover:text-white transition-colors">
+              {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            </button>
+          )}
+          <button title={folder.name} onClick={() => { setSelectedFolder(folder); setSelectedDoc(null); setActiveTab('documents') }} className={`flex items-center gap-2 flex-1 px-2 py-1.5 rounded-md text-xs transition-colors ${selectedFolder?.id === folder.id ? 'text-white bg-[var(--bg-panel-hover)]' : 'text-[var(--text-muted)] hover:text-white hover:bg-[var(--bg-panel-hover)]'} ${!sidebarOpen ? 'justify-center' : ''}`}>
             <FolderIcon size={13} className="text-yellow-400 flex-shrink-0" />
-            <span className="truncate">{folder.name}</span>
-            <span className="text-[10px] text-[var(--text-muted)] ml-auto">{folderDocs.length}</span>
+            {sidebarOpen && <span className="truncate">{folder.name}</span>}
+            {sidebarOpen && <span className="text-[10px] text-[var(--text-muted)] ml-auto">{folderDocs.length}</span>}
           </button>
-          <button
-            onClick={() => { if (confirm(`Delete folder "${folder.name}"?`)) removeFolder(folder.id) }}
-            className="opacity-0 group-hover:opacity-100 hover:text-red-400 text-[var(--text-muted)] transition-all p-1 flex-shrink-0"
-            aria-label={`Delete folder ${folder.name}`}
-          >
-            <Trash2 size={11} />
-          </button>
+          {sidebarOpen && (
+            <button
+              onClick={() => { if (confirm(`Delete folder "${folder.name}"?`)) removeFolder(folder.id) }}
+              className="opacity-0 group-hover:opacity-100 hover:text-red-400 text-[var(--text-muted)] transition-all p-1 flex-shrink-0"
+              aria-label={`Delete folder ${folder.name}`}
+            >
+              <Trash2 size={11} />
+            </button>
+          )}
         </div>
-        {isExpanded && (
+        {sidebarOpen && isExpanded && (
           <div className="ml-5 pl-2 border-l border-[var(--border-color)] space-y-0.5 mt-0.5">
             {folderDocs.length === 0 ? (
               <p className="text-[10px] text-[var(--text-muted)] px-2 py-1">Empty folder</p>
@@ -233,10 +262,17 @@ export default function Home() {
     <div className="flex w-full h-screen bg-[var(--bg-app)] text-[var(--text-main)] overflow-hidden font-sans">
 
       {/* 1. Sidebar */}
-      <aside className="w-[260px] bg-[var(--bg-sidebar)] flex flex-col border-r border-[var(--border-color)] flex-shrink-0 z-10">
-        <div className="p-5 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-pink-500 to-violet-600 flex items-center justify-center font-bold text-white shadow-lg shadow-purple-500/20">AI</div>
-          <h1 className="text-lg font-bold font-display tracking-tight">NotesAI</h1>
+      <aside className={`${sidebarOpen ? 'w-[260px]' : 'w-[70px]'} bg-[var(--bg-sidebar)] flex flex-col border-r border-[var(--border-color)] flex-shrink-0 z-10 transition-all duration-300 ease-in-out`}>
+        <div className={`p-5 flex items-center gap-3 ${!sidebarOpen ? 'justify-center' : ''}`}>
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-pink-500 to-violet-600 flex items-center justify-center font-bold text-white shadow-lg shadow-purple-500/20 flex-shrink-0 cursor-pointer" onClick={() => setSidebarOpen(!sidebarOpen)} title="Toggle Sidebar">
+            {sidebarOpen ? 'AI' : <SidebarIcon size={16} />}
+          </div>
+          {sidebarOpen && <h1 className="text-lg font-bold font-display tracking-tight flex-1">NotesAI</h1>}
+          {sidebarOpen && (
+            <button onClick={() => setSidebarOpen(false)} className="text-[var(--text-muted)] hover:text-white p-1 rounded-md transition-colors" title="Collapse Sidebar">
+              <SidebarIcon size={16} />
+            </button>
+          )}
         </div>
 
         <nav className="px-3 space-y-1 mt-1">
@@ -244,10 +280,11 @@ export default function Home() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${activeTab === tab.id ? 'bg-[var(--bg-panel)] text-white' : 'text-[var(--text-muted)] hover:bg-[var(--bg-panel)] hover:text-white'}`}
+              className={`w-full flex items-center gap-3 py-2.5 rounded-lg transition-colors ${!sidebarOpen ? 'justify-center px-0' : 'px-3'} ${activeTab === tab.id ? 'bg-[var(--bg-panel)] text-white' : 'text-[var(--text-muted)] hover:bg-[var(--bg-panel)] hover:text-white'}`}
+              title={!sidebarOpen ? tab.label : undefined}
             >
               <tab.icon size={17} className={activeTab === tab.id && tab.id === 'documents' ? 'text-pink-400' : ''} />
-              <span className="font-medium text-sm">{tab.label}</span>
+              {sidebarOpen && <span className="font-medium text-sm">{tab.label}</span>}
             </button>
           ))}
         </nav>
@@ -256,16 +293,16 @@ export default function Home() {
         {activeTab === 'documents' && (
           <div className="flex-1 overflow-y-auto mt-4 px-3 custom-scrollbar">
             {/* Folders header */}
-            <div className="flex items-center justify-between px-3 mb-1">
-              <span className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Folders</span>
+            <div className={`flex items-center mb-1 ${sidebarOpen ? 'justify-between px-3' : 'justify-center'}`}>
+              {sidebarOpen && <span className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Folders</span>}
               <div className="flex items-center gap-1">
-                <button onClick={() => setShowNewFolder(!showNewFolder)} className="text-[var(--text-muted)] hover:text-white p-1 rounded" title="New folder" aria-label="New folder">
+                <button onClick={() => { if (!sidebarOpen) setSidebarOpen(true); setShowNewFolder(!showNewFolder) }} className="text-[var(--text-muted)] hover:text-white p-1 rounded bg-[var(--bg-panel)]" title="New folder" aria-label="New folder">
                   <FolderPlus size={14} />
                 </button>
               </div>
             </div>
 
-            {showNewFolder && (
+            {sidebarOpen && showNewFolder && (
               <div className="flex items-center gap-1 mb-2 px-1">
                 <input
                   autoFocus
@@ -281,38 +318,44 @@ export default function Home() {
 
             <div className="space-y-0.5 mb-3">
               {folders.map(renderFolder)}
-              {folders.length === 0 && (
-                <p className="text-[10px] text-[var(--text-muted)] px-3 py-1">No folders yet. Click + to create one.</p>
+              {sidebarOpen && folders.length === 0 && (
+                <p className="text-[10px] text-[var(--text-muted)] px-3 py-1">No folders yet.</p>
               )}
             </div>
 
             {/* All docs (unfiled) */}
-            <div className="flex items-center justify-between px-3 mb-1 mt-3">
-              <span className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">All Documents</span>
-              <button onClick={open} className="text-[var(--text-muted)] hover:text-white p-1 rounded" disabled={uploading} title="Upload">
+            <div className={`flex items-center mb-1 mt-3 ${sidebarOpen ? 'justify-between px-3' : 'justify-center'}`}>
+              {sidebarOpen && <span className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Documents</span>}
+              <button onClick={open} className="text-[var(--text-muted)] hover:text-white p-1 rounded bg-[var(--bg-panel)]" disabled={uploading} title="Upload">
                 {uploading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
               </button>
             </div>
 
             <div className="space-y-0.5">
-              {files.length === 0 ? (
-                <p className="text-[10px] text-[var(--text-muted)] px-3 py-2">No documents yet. Click + to upload.</p>
+              {sidebarOpen && files.length === 0 ? (
+                <p className="text-[10px] text-[var(--text-muted)] px-3 py-2">No documents.</p>
               ) : files.map(renderDocItem)}
             </div>
           </div>
         )}
 
         {/* User footer */}
-        <div className="p-4 mt-auto border-t border-[var(--border-color)]">
+        <div className={`p-4 mt-auto border-t border-[var(--border-color)] ${!sidebarOpen ? 'flex justify-center' : ''}`}>
           {user ? (
-            <div className="flex items-center justify-between px-2 py-2 rounded-lg hover:bg-[var(--bg-panel)] transition-colors cursor-pointer group">
+            <div className={`flex items-center rounded-lg hover:bg-[var(--bg-panel)] transition-colors cursor-pointer group ${sidebarOpen ? 'justify-between px-2 py-2' : 'justify-center py-2 px-0 w-full'}`} title={user.name}>
               <div className="flex items-center gap-2.5">
                 <Avatar name={user.name} />
-                <span className="text-sm font-medium text-white truncate max-w-[100px]">{user.name}</span>
+                {sidebarOpen && <span className="text-sm font-medium text-white truncate max-w-[100px]">{user.name}</span>}
               </div>
-              <button onClick={logout} className="text-[var(--text-muted)] hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all" title="Logout">
-                <X size={14} />
-              </button>
+              {sidebarOpen ? (
+                <button onClick={logout} className="text-[var(--text-muted)] hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all" title="Logout">
+                  <X size={14} />
+                </button>
+              ) : (
+                <div className="hidden">
+                  {/* Put logout logic somewhere else if collapsed, or double click avatar? */}
+                </div>
+              )}
             </div>
           ) : (
             <div className="text-sm text-[var(--text-muted)] px-3 text-center">Not logged in</div>
@@ -321,7 +364,7 @@ export default function Home() {
       </aside>
 
       {/* 2. Main Area */}
-      <main className="flex-1 flex flex-col min-w-0 bg-[var(--bg-app)]" {...getRootProps()}>
+      <main className="flex-1 flex flex-col min-w-0 bg-[var(--bg-app)] relative" {...getRootProps()}>
         <input {...getInputProps()} />
 
         {activeTab === 'dashboard' ? (
@@ -464,9 +507,16 @@ export default function Home() {
         )}
       </main>
 
+      {/* Resizer Handle */}
+      <div 
+        className="w-1.5 cursor-ew-resize bg-transparent hover:bg-pink-500/50 transition-colors z-20 flex-shrink-0"
+        onMouseDown={startDrag}
+      />
+
       {/* 3. AI Chat Pane */}
-      <aside className="w-[340px] bg-[var(--bg-app)] border-l border-[var(--border-color)] flex flex-col flex-shrink-0 z-10">
+      <aside style={{ width: chatWidth }} className="bg-[var(--bg-app)] border-l border-[var(--border-color)] flex flex-col flex-shrink-0 z-10">
         <header className="h-[60px] px-4 flex items-center justify-between border-b border-[var(--border-color)] flex-shrink-0">
+
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-md bg-gradient-to-br from-pink-500 to-violet-600 flex items-center justify-center font-bold text-[10px] text-white">AI</div>
             <div>

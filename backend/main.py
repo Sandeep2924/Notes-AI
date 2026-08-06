@@ -66,7 +66,7 @@ if _raw_origins == "*":
         allow_headers=["*"],
     )
 else:
-    _allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+    _allowed_origins = [o.strip().rstrip('/') for o in _raw_origins.split(",") if o.strip()]
     _allowed_origins += ["http://localhost:3000", "http://localhost:3001"]
     app.add_middleware(
         CORSMiddleware,
@@ -76,9 +76,13 @@ else:
         allow_headers=["*"],
     )
 
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
 # ── Global error handler ──────────────────────────────────────────────────────
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    if isinstance(exc, StarletteHTTPException):
+        raise exc
     tb = traceback.format_exc()
     print("\n" + "="*60)
     print(f"UNHANDLED ERROR  {request.method} {request.url.path}")

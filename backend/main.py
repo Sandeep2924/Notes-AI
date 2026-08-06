@@ -27,24 +27,13 @@ from PIL import Image
 import pytesseract
 import io
 
-import os
-os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
-os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
-from sentence_transformers import SentenceTransformer
-
-# Disable ChromaDB telemetry and monkeypatch posthog to prevent capture errors
-import os
-os.environ["ANONYMIZED_TELEMETRY"] = "False"
-try:
-    import posthog
-    posthog.capture = lambda *args, **kwargs: None
-except ImportError:
-    pass
-import chromadb
 from groq import Groq
+import re
+import math
+from collections import Counter
 
 # ── DB & Auth ────────────────────────────────────────────────────────────────
-from database import engine, get_db
+from database import engine, get_db, SessionLocal
 import models
 from auth import get_password_hash, verify_password, create_access_token, get_current_user, get_user_from_token, ACCESS_TOKEN_EXPIRE_MINUTES
 
@@ -119,19 +108,8 @@ supabase_client: Client | None = None
 if SUPABASE_URL and SUPABASE_SERVICE_KEY:
     supabase_client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
-print("Loading embedding model (first run downloads ~90 MB)...")
-embedder = SentenceTransformer("all-MiniLM-L6-v2")
-print("Embedding model ready.\n")
-
-chroma_client = chromadb.PersistentClient(
-    path="./chroma_db",
-    settings=chromadb.Settings(anonymized_telemetry=False)
-)
-collection = chroma_client.get_or_create_collection(
-    name="notes",
-    metadata={"hnsw:space": "cosine"}
-)
-print(f"ChromaDB ready. Existing chunks: {collection.count()}\n")
+# Lightweight search mode enabled (0MB RAM)
+print("Running in lightweight mode (BM25 Search). AI Embeddings disabled to save memory.\n")
 
 groq_client = Groq(api_key=GROQ_API_KEY)
 
@@ -172,28 +150,54 @@ def chunk_text(text: str, chunk_size: int = 400, overlap: int = 80) -> list[str]
 
 
 def embed_and_store(chunks: list[str], doc_id: str, filename: str, user_id: int):
-    embeddings = embedder.encode(chunks).tolist()
-    ids = [f"{doc_id}_{i}" for i in range(len(chunks))]
-    metas = [{"filename": filename, "doc_id": doc_id, "chunk_index": i, "user_id": user_id} for i in range(len(chunks))]
-    collection.add(documents=chunks, embeddings=embeddings, ids=ids, metadatas=metas)
+    db = SessionLocal()
+    try:
+        for i, chunk in enumerate(chunks):
+            db.add(models.DocumentChunk(doc_id=doc_id, user_id=user_id, chunk_index=i, text=chunk))
+        db.commit()
+    finally:
+        db.close()
+
+def simple_bm25_search(query: str, chunks: list[str], top_k: int = 4) -> list[str]:
+    def tokenize(text):
+        return [w.lower() for w in re.findall(r'\w+', text)]
+    q_words = tokenize(query)
+    if not q_words or not chunks:
+        return chunks[:top_k]
+    df = Counter()
+    tokenized_chunks = []
+    for chunk in chunks:
+        words = tokenize(chunk)
+        tokenized_chunks.append(words)
+        for w in set(words):
+            df[w] += 1
+    N = len(chunks)
+    scores = []
+    for i, words in enumerate(tokenized_chunks):
+        score = 0
+        words_count = Counter(words)
+        for w in q_words:
+            if w in words_count:
+                tf = words_count[w]
+                idf = math.log(1 + (N - df[w] + 0.5) / (df[w] + 0.5))
+                score += idf * (tf * 2.5) / (tf + 1.5)
+        scores.append((score, chunks[i]))
+    scores.sort(key=lambda x: x[0], reverse=True)
+    return [s[1] for s in scores[:top_k] if s[0] > 0] or chunks[:top_k]
 
 
 def retrieve_chunks(question: str, user_id: int, doc_ids: Optional[list[str]] = None, top_k: int = 4) -> list[str]:
-    q_emb = embedder.encode([question]).tolist()
-    
-    where_clause = {"user_id": user_id}
-    if doc_ids:
-        if len(doc_ids) == 1:
-            where_clause = {"$and": [{"user_id": user_id}, {"doc_id": doc_ids[0]}]}
-        else:
-            where_clause = {"$and": [{"user_id": user_id}, {"doc_id": {"$in": doc_ids}}]}
-
-    results = collection.query(
-        query_embeddings=q_emb, 
-        n_results=top_k,
-        where=where_clause
-    )
-    return results["documents"][0] if results and results["documents"] else []
+    db = SessionLocal()
+    try:
+        query = db.query(models.DocumentChunk).filter(models.DocumentChunk.user_id == user_id)
+        if doc_ids:
+            query = query.filter(models.DocumentChunk.doc_id.in_(doc_ids))
+        all_chunks = [c.text for c in query.all()]
+        if not all_chunks:
+            return []
+        return simple_bm25_search(question, all_chunks, top_k)
+    finally:
+        db.close()
 
 
 def build_prompt(question: str, chunks: list[str]) -> str:
@@ -657,13 +661,9 @@ def clear_notes(db: Session = Depends(get_db), current_user: models.User = Depen
         db.delete(doc)
     db.commit()
 
-    # Clear from ChromaDB
-    # Note: ChromaDB doesn't have a simple delete-by-metadata feature in the default client
-    # For MVP, we will manually delete the IDs or reset. Since users are isolated by metadata, 
-    # it's best to retrieve the IDs first.
-    results = collection.get(where={"user_id": current_user.id})
-    if results and results['ids']:
-        collection.delete(ids=results['ids'])
+    # Clear chunks from Postgres
+    db.query(models.DocumentChunk).filter(models.DocumentChunk.user_id == current_user.id).delete()
+    db.commit()
 
     return {"success": True, "message": "Your notes have been cleared."}
 
@@ -684,13 +684,8 @@ def delete_document(doc_id: str, db: Session = Depends(get_db), current_user: mo
     elif Path(doc.file_path).exists():
         os.remove(doc.file_path)
         
-    # Delete from ChromaDB
-    try:
-        results = collection.get(where={"$and": [{"doc_id": doc_id}, {"user_id": current_user.id}]})
-        if results and results['ids']:
-            collection.delete(ids=results['ids'])
-    except Exception as e:
-        print(f"Failed to delete from ChromaDB: {e}")
+    # Delete Chunks
+    db.query(models.DocumentChunk).filter(models.DocumentChunk.doc_id == doc_id).delete()
         
     # Delete Annotations
     db.query(models.Annotation).filter(models.Annotation.doc_id == doc_id).delete()

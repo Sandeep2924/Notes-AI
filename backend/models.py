@@ -82,3 +82,15 @@ class ChatMessage(Base):
     document = relationship("Document", back_populates="chat_messages")
     folder = relationship("Folder", backref="chat_messages")
     owner = relationship("User")
+
+class DocumentChunk(Base):
+    __tablename__ = "document_chunks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    doc_id = Column(String, ForeignKey("documents.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    chunk_index = Column(Integer, nullable=False)
+    text = Column(Text, nullable=False)
+
+    document = relationship("Document", backref="document_chunks")
+

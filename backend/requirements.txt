@@ -27,14 +27,5 @@ pillow>=11.0.0
 pytesseract>=0.3.13
 
 # --- Data Science & Vectors ---
-numpy>=2.0.0
-pandas>=2.2.0
-scikit-learn>=1.5.0
-chromadb>=0.5.20
-
 # --- AI Models & LLM ---
-# Forces pip to install the smaller CPU-only version of PyTorch to save RAM
---extra-index-url https://download.pytorch.org/whl/cpu
-torch>=2.4.0
-sentence-transformers>=3.3.0
 groq>=0.11.0

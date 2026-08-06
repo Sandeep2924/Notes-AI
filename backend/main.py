@@ -393,9 +393,10 @@ async def upload(
             )
             file_location = f"supabase://{object_name}"
         except Exception as e:
-            print("Failed to upload to Supabase, falling back to local storage:", e)
+            print("Failed to upload to Supabase:", e)
+            raise HTTPException(status_code=500, detail=f"Supabase Storage Error: Please ensure you created a bucket named '{SUPABASE_BUCKET_NAME}' in your Supabase dashboard. Detail: {str(e)}")
             
-    # Fallback to local storage if Supabase fails or isn't configured
+    # Fallback to local storage if Supabase isn't configured
     if not file_location:
         file_path = UPLOAD_DIR / unique_filename
         with open(file_path, "wb") as f:

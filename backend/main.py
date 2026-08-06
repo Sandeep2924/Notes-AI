@@ -27,6 +27,9 @@ from PIL import Image
 import pytesseract
 import io
 
+import os
+os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
+os.environ["HF_HUB_DISABLE_TELEMETRY"] = "1"
 from sentence_transformers import SentenceTransformer
 
 # Disable ChromaDB telemetry and monkeypatch posthog to prevent capture errors
